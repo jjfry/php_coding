@@ -12,88 +12,40 @@ session_start();
 	<title>Guest book</title>
 </head>
 <body>
-РЕГИСТРАЦИЯ
-<form method="post" action="">
-	<input type="text" name="text_reg" />
-	<input type="password" name="pass_reg" />
-	<input type="submit" />
-</form>
-<br>
-ВХОД
-<form method="post" action="">
-	<input type="text" name="text_login" />
-	<input type="password" name="pass_login" />
-	<input type="hidden" value="hide" />
-	<input type="submit" />
-</form>
 
-<form method="post" action="">
-	<input type="hidden" name="exit" />
-	<input type="submit" value="Выход" />
-</form>
 
 
 
 <?php
-
-//registration
-
-if(isset($_POST['text_reg']) && isset($_POST['pass_reg']))
+if(isset($_SESSION['user_name']) == false)
 {
-	if($_POST['text_reg'] != '' && $_POST['pass_reg'] != '')
-	{
-		if(file_exists(__DIR__ . "/{$_POST['text_reg']}.txt"))
-		{
-			echo "Username already exist, please choose another";
-		}
-		else
-		{
-			$reg_data = ['name'=>$_POST['text_reg'], 'password'=>$_POST['pass_reg']];
-			$file_array = json_encode($reg_data);
+?>
 
-			file_put_contents(__DIR__ . "/{$_POST['text_reg']}.txt", $file_array);
+    <a href="login.php">Войти</a>
+    ||
+    <a href="register.php">Регистрация</a>
+    <br>
+    <br>
 
-			echo "Thanks for register";
-		}
-	}
-	else
-	{
-		echo "Enter registration data again";
-	}
+<?php
 }
-
-//login
-if(isset($_POST['text_login']) && isset($_POST['pass_login']))
+else
 {
-	if($_POST['text_login'] != '' && $_POST['pass_login'] != '')
-	{
-		if(file_exists(__DIR__ . "/{$_POST['text_login']}.txt"))
-		{
-			$file = file_get_contents(__DIR__ . "/{$_POST['text_login']}.txt");
-			$file = json_decode($file, true);
-			if($file['name'] == $_POST['text_login'] && $file['password'] == $_POST['pass_login'])
-			{
 
-				$_SESSION['user_name'] = $_POST['text_login'];
+?>
 
+    <form method="post" action="">
+        <input type="hidden" name="exit" />
+        <input type="submit" value="Выход" />
+    </form>
 
-
-			}
-			else
-			{
-				echo "You enter wrong data";
-			}
-		}
-		else
-		{
-			echo "User doesn't exist, please register";
-		}
-	}
-	else
-	{
-		echo "Enter registration data again";
-	}
+<?php
 }
+?>
+
+
+<?php
+
 
 if(isset($_SESSION['user_name']))
 {
@@ -103,30 +55,64 @@ if(isset($_SESSION['user_name']))
 }
 ?>
 
-<form method="post" action="">
 
-	<br />
-	<br />
-	<br />
-	Вырази свою мысль!
-	<br />
-	<textarea name="comment"></textarea>
-	<br />
-	<input type="submit" value="Отправить" />
-</form>
+<?php
+if(isset($_SESSION['user_name']))
+{
 
+?>
+    <form method="post" action="" enctype="multipart/form-data">
 
+	    <br />
+	    <br />
+	    <br />
+	    Вырази свою мысль!
+	    <br />
+	    <textarea name="comment"></textarea>
+	    <br />
+        <input type="file"  name="file_add">
+	    <input type="submit" value="Отправить" />
+    </form>
+
+<?php
+}
+?>
 
 
 <?php
 
-if(isset($_SESSION['user_name']) && isset($_POST['comment']))
+
+
+if(isset($_SESSION['user_name']) && isset($_POST['comment']) && $_POST['comment'] != '')
 {
 	$date = time();
 
 	$comment_data = ['name'=> $_SESSION['user_name'], 'text'=> $_POST['comment'], 'date'=> date('d.m.Y h:i:s'), 'ip'=> $_SERVER['REMOTE_ADDR']];
-	$json = json_encode($comment_data);
-	file_put_contents(__DIR__ . "/$date.json", $json);
+
+
+
+    if(isset($_FILES['file_add']) && $_FILES['file_add']['error'] != 4)
+    {
+        if($_FILES['file_add']['error'] == 1)
+        {
+            echo "Файл слишком большой";
+        }
+        elseif(strpos($_FILES['file_add']['type'], 'age') == false)
+        {
+
+			echo "Файл должен быть картинкой! <br />";
+
+
+        }
+		else
+		{
+			move_uploaded_file($_FILES['file_add']['tmp_name'], __DIR__ . "/photo/$date" );
+			$comment_data['file'] = "$date";
+			$json = json_encode($comment_data);
+			file_put_contents(__DIR__ . "/$date.json", $json);
+		}
+    }
+
 
 
 
@@ -135,6 +121,13 @@ elseif(isset($_POST['comment']) && $_POST['comment'] != '')
 {
 	echo 'please register';
 	echo '<br />';
+}
+elseif(isset($_POST['comment']) && $_POST['comment'] == '')
+{
+
+	echo "Введите текст пожалуйста";
+	echo '<br>';
+
 }
 
 $names = scandir(__DIR__);
@@ -146,23 +139,43 @@ foreach($names as $name)
 		$file = file_get_contents(__DIR__ . "/$name");
 		$file = json_decode($file, true);
 
-		echo "<b>{$file['name']}</b>";
-		echo '<br>';
-		echo $file['text'];
-		echo '<br>';
-		echo $file['date'];
-		echo '<br>';
-		if(isset($_SESSION['user_name']))
+		if(isset($file['file']) && $file['text'] != '')
 		{
-			if($_SERVER['REMOTE_ADDR'] == $file['ip'] && file_exists(__DIR__ . "/{$_SESSION['user_name']}.txt") && $file['name'] == $_SESSION['user_name'])
+			echo "<b>{$file['name']}</b>";
+			echo '<br />';
+			$path = "photo/{$file['file']}";
+			echo "<img src='$path' width='100'/>";
+			echo " ";
+			echo $file['text'];
+			echo '<br />';
+			echo $file['date'];
+			echo '<br / >';
+			if(isset($_SESSION['user_name']))
 			{
-				echo "<a href='sessions.php?delete=$name'>удалить</a>";
-				echo '<br>';
+				if($_SERVER['REMOTE_ADDR'] == $file['ip'] && file_exists(__DIR__ . "/{$_SESSION['user_name']}.txt") && $file['name'] == $_SESSION['user_name'])
+				{
+					echo "<a href='sessions.php?delete=$name'>удалить</a>";
+					echo '<br>';
+				}
 			}
 		}
-
-
-
+		elseif($file['text'] != '')
+		{
+			echo "<b>{$file['name']}</b>";
+			echo '<br />';
+			echo $file['text'];
+			echo '<br />';
+			echo $file['date'];
+			echo '<br / >';
+			if(isset($_SESSION['user_name']))
+			{
+				if($_SERVER['REMOTE_ADDR'] == $file['ip'] && file_exists(__DIR__ . "/{$_SESSION['user_name']}.txt") && $file['name'] == $_SESSION['user_name'])
+				{
+					echo "<a href='sessions.php?delete=$name'>удалить</a>";
+					echo '<br>';
+				}
+			}
+		}
 	}
 }
 
